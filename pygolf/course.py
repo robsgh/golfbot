@@ -1,7 +1,10 @@
+"""
+Course utilities and GolfCourse container
+"""
+
 from random import Random
 from enum import Enum
 import time
-import math
 
 
 class CourseHazard(Enum):
@@ -14,13 +17,12 @@ class CourseHazard(Enum):
 
 class GolfCourse:
     """ Rolling greens and buttery swings """
-
     def __init__(self, hole_count: int=18, course_seed: int=None):
         """ Create a random golf course with a defined slope
 
-            Arguments:
-                * `hole_count`: Amount of holes which can be played on the course
-                * `course_seed`: RNG seed for replaying a previous course
+        Arguments:
+            * `hole_count`: Amount of holes which can be played on the course
+            * `course_seed`: RNG seed for replaying a previous course
         """
         self._holes = hole_count
         self._seed = course_seed
@@ -36,22 +38,26 @@ class GolfCourse:
 
     @property
     def holes(self) -> int:
+        """ Amount of holes on the golf course """
         return self._holes
 
     @property
     def seed(self):
+        """ Random number generator seed for this course """
         return self._seed
 
     @property
     def total_distance(self) -> float:
+        """ Total course distance in yards """
         return self._course_data['total_distance']
 
     @property
     def course_par(self) -> int:
+        """ Course par """
         return self._course_data['course_par']
 
-    @property
     def stats(self):
+        """ Print out general information about the course """
         print(f'Par: {self.course_par}, distance: {self.total_distance}')
         water = 0
         trees = 0
@@ -67,11 +73,61 @@ class GolfCourse:
         print(f'Hazards:\n\tWater: {water}\n\tTrees: {trees}')
         print(f'\tBunkers:\n\t\tFairway: {fw_bunker}\tGreenside: {gs_bunker}')
 
+    def hole_stats(self, hole_number: int):
+        """ Print out general information about a specific hole on the course
+
+        Arguments:
+        * `hole_number`: hole number (1-self.holes) to view more info about
+        """
+        try:
+            hole_info = self.get_hole(hole_number)
+            print(f'Hole #{hole_number}: Par {hole_info["par"]}, Length: {hole_info["length"]}')
+            print('Hazards:\n\tFairway:')
+            for i, hazard in enumerate(hole_info['fairway_hazards']):
+                if hazard == CourseHazard.NONE:
+                    continue
+                if i % 2 == 0:
+                    print(f'left: {hazard}')
+                else:
+                    print(f'right: {hazard}')
+
+            print('\tGreenside:')
+            if hole_info['greenside_hazards'][0] != CourseHazard.NONE:
+                print('Front: CourseHazard.BUNKER')
+            if hole_info['greenside_hazards'][1] != CourseHazard.NONE:
+                print('Back: CourseHazard.BUNKER')
+            if hole_info['greenside_hazards'][2] != CourseHazard.NONE:
+                print('Left: CourseHazard.BUNKER')
+            if hole_info['greenside_hazards'][3] != CourseHazard.NONE:
+                print('Right: CourseHazard.BUNKER')
+
+        except ValueError as e:
+            print(f'cannot display information about hole #{hole_number}: {e.with_traceback()}')
+            return
+
     def hole_par(self, hole_number: int) -> int:
-        """ Get the par for a specific hole on the course """
+        """ Get the par for a specific hole on the course
+
+        Arguments:
+        * `hole_number`: the hole number 1-self.holes to check par
+
+        Returns:
+        * The par for a specific hole
+        """
+        return self.get_hole(hole_number)['par']
+
+    def get_hole(self, hole_number: int) -> dict:
+        """ Get the decription of a specific hole, including hazards and stats
+
+        Arguments:
+        * `hole_number`: the hole number (1-self.holes) to gather information about
+
+        Returns:
+        * A `dict` object that contains par, distance, and hazard information about the hole
+        """
         if hole_number < 1 or hole_number > self.holes:
-            raise ValueError('hole number out of course length bounds')
-        return self._course_data['hole_par'][hole_number - 1]
+            raise ValueError(f'hole number {hole_number} is out of the interval [1-{self.holes}]')
+        return self._course_data['holes'][hole_number-1]
 
     def _create_hole(self, par: int, length: float) -> dict:
         """ Create a single hole on a course with a set par and length
@@ -84,7 +140,7 @@ class GolfCourse:
         greenside_hazards = []
         green_bunker_threshold = 0.5
         # four positions for the bunkers: front, back, left, right
-        for i in range(3):
+        for _ in range(4):
             if self._rng.random() < green_bunker_threshold:
                 greenside_hazards.append(CourseHazard.BUNKER)
             else:
@@ -96,7 +152,7 @@ class GolfCourse:
         fairway_water_threshold = 0.75
         fairway_trees_threshold = 0.9
         # hazard is on left side when i%2==0 and right when i%2==1
-        for i in range(self._rng.randrange(0, 4)):
+        for _ in range(self._rng.randrange(0, 4)):
             val = self._rng.randrange(0,3)
             if val == 0 and self._rng.random() < fairway_bunker_threshold:
                 fairway_hazards.append(CourseHazard.BUNKER)
@@ -113,38 +169,54 @@ class GolfCourse:
             'greenside_hazards': greenside_hazards
         }
 
-    def _calculate_par(self) -> int:
-        """ Calculate a par [3,5] from the normal distribution centered around 4.4 """
-        return min(max(math.floor(self._rng.normalvariate(4.4, 0.5)), 3), 5)
+    def _calculate_pars(self) -> int:
+        """ Create the random distribution of pars for the course
+
+        Returns:
+        * a tuple: 1st=hole_distribution, 2nd=course_par
+        """
+        # determine the amount of each par to create
+        par_threes = self._rng.randrange(2,5)
+        par_fives  = self._rng.randrange(2,4)
+        par_fours  = self.holes - (par_threes + par_fives)
+
+        # create the holes and randomly shuffle the list
+        d = []
+        d.extend([3 for x in range(par_threes)])
+        d.extend([4 for x in range(par_fours)])
+        d.extend([5 for x in range(par_fives)])
+        self._rng.shuffle(d)
+
+        # calculate course par and return
+        course_par = (3 * par_threes) + (4 * par_fours) + (5 * par_fives)
+        return d, course_par
 
     def _generate_course(self) -> dict:
         """ Generate a full course and return the course data as a dictionary """
         # calculate the hole distribution
-        distrib = []
-        distrib.extend([3 for x in range(self._rng.randint(2,4))])
-        distrib.extend([5 for x in range(self._rng.randint(2,4))])
-        distrib.extend([4 for x in range(18-len(distrib))])
-        self._rng.shuffle(distrib)
-
-        course_par = 0
-        for i in distrib:
-            course_par += i
+        distrib, course_par = self._calculate_pars()
 
         total_dist = 0.0
         course_data = {'course_par': course_par, 'hole_par': distrib, 'holes': []}
-        for par in distrib:
-            d = 0.0
-            # adjust distances based on the USGA yardage guidelines for par
-            # 3: 0-250yds   4: 251-470yds   5: 471-690yds
-            if par == 3:
-                d = self._rng.random() * 130.0 + 120.0
-            elif par == 4:
-                d = self._rng.random() * 219.0 + 251.0
-            elif par == 5:
-                d = self._rng.random() * 219.0 + 471.0
-            course_data['holes'].append(self._create_hole(par, round(d, 1)))
-            total_dist += round(d, 1)
 
-        # set the total course distance
-        course_data['total_distance'] = total_dist
+        # adjust distances based on the USGA yardage guidelines for par
+        # 3: 0-250yds   4: 251-470yds   5: 471-690yds
+        # the upper bounds are represented as displacement from lower (upper - lower)
+        # due to the usage of the bounds in Random.random()
+        usga_lengths = {
+            3: (120.0, 130.0),
+            4: (251.0, 219.0),
+            5: (471.0, 219.0),
+        }
+
+        for par in distrib:
+            # calculate a distance for each hole based on the par guidelines in usga_lengths
+            d = round(self._rng.random() * usga_lengths[par][0] + usga_lengths[par][1], 1)
+            course_data['holes'].append(self._create_hole(par, d))
+            total_dist += d
+
+        # set the total course distance (rounded to correct float imprecision)
+        course_data['total_distance'] = round(total_dist, 1)
+
+        # return the completed course
         return course_data
