@@ -64,12 +64,10 @@ class GolfCourse:
         fw_bunker = 0
         gs_bunker = 0
         for i in self._course_data['holes']:
-            for j in i['fairway_hazards']:
-                if j == CourseHazard.WATER: water += 1
-                elif j == CourseHazard.TREES: trees += 1
-                elif j == CourseHazard.BUNKER: fw_bunker += 1
-            for j in i['greenside_hazards']:
-                if j == CourseHazard.BUNKER: gs_bunker += 1
+            water += i['fairway_hazards'].count(CourseHazard.WATER)
+            trees += i['fairway_hazards'].count(CourseHazard.TREES)
+            fw_bunker += i['fairway_hazards'].count(CourseHazard.BUNKER)
+            gs_bunker += i['greenside_hazards'].count(CourseHazard.BUNKER)
         print(f'Hazards:\n\tWater: {water}\n\tTrees: {trees}')
         print(f'\tBunkers:\n\t\tFairway: {fw_bunker}\tGreenside: {gs_bunker}')
 
@@ -100,6 +98,14 @@ class GolfCourse:
                 print('Left: CourseHazard.BUNKER')
             if hole_info['greenside_hazards'][3] != CourseHazard.NONE:
                 print('Right: CourseHazard.BUNKER')
+
+            print('Dogleg:')
+            if hole_info['dogleg'] < 0:
+                print(f'\tLeft ({hole_info["dogleg"]})')
+            elif hole_info['dogleg'] > 0:
+                print(f'\tLeft ({hole_info["dogleg"]})')
+            else:
+                print('\tNone')
 
         except ValueError as e:
             print(f'cannot display information about hole #{hole_number}: {e.with_traceback()}')
@@ -163,10 +169,20 @@ class GolfCourse:
             else:
                 fairway_hazards.append(CourseHazard.NONE)
 
+        dogleg = self._rng.random() * 100.0 - 50.0
+        if abs(dogleg) < 35:
+            dogleg = 0
+
+        # par: par for hole
+        # length: distance to cover to pin
+        # fairway_hazards: bunker/water/trees in fairway
+        # greenside_hazards: bunkers on green
+        # dogleg: < 0 - fairway curves left; > 0 - fairway curves right
         return {
             'par': par, 'length': length,
             'fairway_hazards': fairway_hazards,
-            'greenside_hazards': greenside_hazards
+            'greenside_hazards': greenside_hazards,
+            'dogleg': dogleg
         }
 
     def _calculate_pars(self) -> int:

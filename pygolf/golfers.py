@@ -49,14 +49,17 @@ class Scorecard:
 
     @property
     def golfers(self):
+        """ List of golfers on the scorecard """
         return self._golfers
 
     @property
     def holes(self):
+        """ How many holes were tracked on the scorecard """
         return self._holes
 
     @property
     def scores(self):
+        """ Raw scoring data """
         return self._scorecard
 
 
@@ -67,11 +70,17 @@ class GolfBag:
 
     @property
     def club(self):
+        """ Currently selected club """
         return self._current_club
 
     @club.setter
     def club(self, club_code: str):
+        """ Change the currently selected club to a valid club
+
+        Arguments:
+        * `club_code`: a string in the form of `driver`, `1`, `2`, `3`,
+        `4`, `5`, `6`, `7`, `8`, `9`, `pw`, `gw`, `sw`, `lw`, `putter`
+        """
         if club_code not in ['driver','1','2','3','4','5','6','7','8','9','pw','gw','sw','lw','putter']:
             raise ValueError('tried to select a club which is not in the bag')
-
         self._current_club = club_code
